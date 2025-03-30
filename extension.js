@@ -28,18 +28,13 @@ const Mp3Player = GObject.registerClass(
         _init() {
             super._init(0.0, "MP3 Player");
 
-            // Create the play icon
-            let icon = new St.Icon({
-                icon_name: 'media-playback-start-symbolic',
-                style_class: 'system-status-icon'
-            });
-            this.add_child(icon);
+            // Create the play icon container
+            this._iconBin = new St.Bin();
+            this._updateIconToPlay(); // Initialize with play icon
+            this.add_child(this._iconBin);
             
-            // Create the stop icon (will be used when playing)
-            this._stopIcon = new St.Icon({
-                icon_name: 'media-playback-stop-symbolic',
-                style_class: 'system-status-icon'
-            });
+            // Debug log for initialization
+            debug('Initializing MP3 Player button with icons');
             
             // Add toggle action to button
             this.connect('button-press-event', this._togglePlayback.bind(this));
@@ -50,6 +45,7 @@ const Mp3Player = GObject.registerClass(
             // Initialize state
             this._isPlaying = false;
             this._player = null;
+            this._busId = null;
         }
         
         _buildMenu() {
@@ -113,6 +109,11 @@ const Mp3Player = GObject.registerClass(
                             if (message.src === this._player) {
                                 let [old_state, new_state, pending_state] = message.parse_state_changed();
                                 debug(`State changed from ${old_state} to ${new_state}, pending ${pending_state}`);
+                                
+                                // If the state changed to PLAYING, update the icon
+                                if (new_state === Gst.State.PLAYING) {
+                                    this._updateIconToStop();
+                                }
                             }
                             break;
                     }
@@ -129,11 +130,8 @@ const Mp3Player = GObject.registerClass(
                 
                 this._isPlaying = true;
                 
-                // Change icon to stop
-                if (this.child) {
-                    this.remove_child(this.child);
-                }
-                this.add_child(this._stopIcon);
+                // Update UI immediately for better responsiveness
+                this._updateIconToStop();
                 
                 // Update menu item
                 this._playStopItem.label.text = "Stop";
@@ -149,6 +147,32 @@ const Mp3Player = GObject.registerClass(
                     this._player = null;
                 }
             }
+        }
+        
+        _updateIconToStop() {
+            debug('Updating icon to stop');
+            // Create a new stop icon
+            let stopIcon = new St.Icon({
+                icon_name: 'media-playback-stop-symbolic',
+                style_class: 'system-status-icon'
+            });
+            
+            // Clear and set the new icon
+            this._iconBin.set_child(null);
+            this._iconBin.set_child(stopIcon);
+        }
+        
+        _updateIconToPlay() {
+            debug('Updating icon to play');
+            // Create a new play icon
+            let playIcon = new St.Icon({
+                icon_name: 'media-playback-start-symbolic',
+                style_class: 'system-status-icon'
+            });
+            
+            // Clear and set the new icon
+            this._iconBin.set_child(null);
+            this._iconBin.set_child(playIcon);
         }
         
         _stopPlayback() {
@@ -169,15 +193,8 @@ const Mp3Player = GObject.registerClass(
             
             this._isPlaying = false;
             
-            // Change icon back to play
-            debug('Changing icon back to play');
-            if (this.child) {
-                this.remove_child(this.child);
-            }
-            this.add_child(new St.Icon({
-                icon_name: 'media-playback-start-symbolic',
-                style_class: 'system-status-icon'
-            }));
+            // Update UI
+            this._updateIconToPlay();
             
             // Update menu item
             this._playStopItem.label.text = "Play";
@@ -241,9 +258,16 @@ const Mp3Player = GObject.registerClass(
 export default class GlzPlayerExtension extends Extension {
     enable() {
         debug('Enabling GLZ Player extension');
-        indicator = new Mp3Player();
-        Main.panel.addToStatusArea('mp3-player', indicator);
-        debug('GLZ Player extension enabled');
+        
+        try {
+            debug('Creating MP3Player instance');
+            indicator = new Mp3Player();
+            debug('Adding MP3Player to the panel');
+            Main.panel.addToStatusArea('mp3-player', indicator);
+            debug('GLZ Player extension enabled successfully');
+        } catch (e) {
+            logError(e, 'Error enabling GLZ Player extension');
+        }
     }
 
     disable() {
