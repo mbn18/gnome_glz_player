@@ -1,0 +1,13 @@
+{
+  "name": "MP3 Glz Player",
+  "description": "Play Glz MP3 files from a URL with a button in the top bar",
+  "uuid": "glzPlayer@epoch.co.il",
+  "shell-version": [
+    "47"
+  ],
+  "url": "https://github.com/mbn18/gnome-glz-player",
+  "version": 4,
+  "shell-api-version-map": {
+    "47": 1
+  }
+}
